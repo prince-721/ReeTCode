@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+  <!-- Outer ring -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M54,14 C31.9,14 14,31.9 14,54 C14,76.1 31.9,94 54,94 C76.1,94 94,76.1 94,54 C94,31.9 76.1,14 54,14Z"/>
+  <!-- Inner cutout -->
+  <path
+      android:fillColor="#FF6B6B"
+      android:pathData="M54,30 C39.6,30 28,41.6 28,56 C28,70.4 39.6,82 54,82 C68.4,82 80,70.4 80,56 C80,41.6 68.4,30 54,30Z"/>
+  <!-- Center hole -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M54,44 C47.4,44 42,49.4 42,56 C42,62.6 47.4,68 54,68 C60.6,68 66,62.6 66,56 C66,49.4 60.6,44 54,44Z"/>
+  <!-- Film holes top -->
+  <path android:fillColor="#FF6B6B" android:pathData="M34,18 m-4,-4 h8 v8 h-8z"/>
+  <path android:fillColor="#FF6B6B" android:pathData="M54,18 m-4,-4 h8 v8 h-8z"/>
+  <path android:fillColor="#FF6B6B" android:pathData="M74,18 m-4,-4 h8 v8 h-8z"/>
+  <!-- Film holes bottom -->
+  <path android:fillColor="#FF6B6B" android:pathData="M34,90 m-4,-4 h8 v8 h-8z"/>
+  <path android:fillColor="#FF6B6B" android:pathData="M54,90 m-4,-4 h8 v8 h-8z"/>
+  <path android:fillColor="#FF6B6B" android:pathData="M74,90 m-4,-4 h8 v8 h-8z"/>
+  <!-- Play triangle -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M50,51 L50,61 L60,56 Z"/>
+</vector>

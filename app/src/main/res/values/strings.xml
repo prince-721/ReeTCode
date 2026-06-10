@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Reel Tracker</string>
+    <string name="accessibility_service_label">Reel Tracker Scroll Detection</string>
+    <string name="accessibility_service_description">Reel Tracker monitors scroll events in Instagram, Snapchat, and YouTube to count reels/shorts watched. No personal data is collected or transmitted.</string>
+    <string name="notification_channel_id">reel_tracker_channel</string>
+    <string name="notification_channel_name">Reel Tracker</string>
+    <string name="notification_channel_description">Shows your live reel count and tracking status</string>
+    <string name="device_admin_description">Protects the Reel Tracker app from being uninstalled to help preserve your screen time goals.</string>
+</resources>
