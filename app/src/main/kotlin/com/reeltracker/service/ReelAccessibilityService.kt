@@ -215,7 +215,7 @@ class ReelAccessibilityService : AccessibilityService() {
         }
 
         // Intercept and block if screen time limit or Focus Mode is active on the current active foreground app
-        val isAppBlocked = !inTempUnlock && isBlocked && isCurrentPackageBlocked(currentPackage)
+        val isAppBlocked = !inTempUnlock && isBlocked && (isCurrentPackageBlocked(currentPackage) || isSettingsOrInstallerPackage(currentPackage))
         val isFocusBlocked = isFocusModeActive(currentPackage)
 
         if (isAppBlocked || isFocusBlocked) {
@@ -371,12 +371,23 @@ class ReelAccessibilityService : AccessibilityService() {
                 pkg == PACKAGE_YOUTUBE
     }
 
+    private fun isSettingsOrInstallerPackage(pkg: String): Boolean {
+        val lower = pkg.lowercase(Locale.US)
+        return lower == "com.android.settings" ||
+                lower == "com.google.android.settings" ||
+                lower == "com.samsung.android.settings" ||
+                lower == "com.android.providers.settings" ||
+                lower == "com.google.android.packageinstaller" ||
+                lower == "com.android.packageinstaller" ||
+                lower == "com.android.vending"
+    }
+
     private fun isFocusModeActive(packageName: String): Boolean {
         // 1. Check SharedPreferences Focus Session
         val isFocusedShared = focusedModeRepository.isFocused()
         if (isFocusedShared) {
             val blockedApps = focusedModeRepository.getBlockedApps()
-            if (blockedApps.contains(packageName) || isCurrentPackageBlocked(packageName)) {
+            if (blockedApps.contains(packageName) || isCurrentPackageBlocked(packageName) || isSettingsOrInstallerPackage(packageName)) {
                 return true
             }
         }
@@ -430,15 +441,13 @@ class ReelAccessibilityService : AccessibilityService() {
     private fun isPackageBlockedInFocusMode(packageName: String, mode: com.reeltracker.data.entities.FocusMode): Boolean {
         val safePackages = setOf(
             this.packageName,
-            "android",
-            "com.android.settings",
-            "com.android.providers.settings",
-            "com.google.android.packageinstaller",
-            "com.android.packageinstaller"
+            "android"
         )
         if (safePackages.contains(packageName)) return false
 
         if (isLauncherPackage(packageName)) return false
+
+        if (isSettingsOrInstallerPackage(packageName)) return true
 
         if (mode.blockedApps.contains(packageName)) return true
 
