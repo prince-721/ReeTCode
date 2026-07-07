@@ -32,9 +32,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.reeltracker.receiver.TrackerDeviceAdminReceiver
 import com.reeltracker.ui.theme.*
+import com.reeltracker.viewmodel.CodingUnlockViewModel
+import com.reeltracker.viewmodel.CodingUnlockUiState
 import com.reeltracker.viewmodel.HomeUiState
 import com.reeltracker.viewmodel.ReelTrackerViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -181,6 +185,327 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(20.dp))
 
+            // Code to Unlock
+            val codingViewModel: CodingUnlockViewModel = viewModel()
+            val codingState by codingViewModel.uiState.collectAsStateWithLifecycle()
+
+            SettingsSectionHeader("Code to Unlock")
+
+            SettingsCard {
+                // Enable toggle
+                SettingsToggleRow(
+                    icon = Icons.Default.Code,
+                    iconTint = Teal,
+                    title = "Enable Code to Unlock",
+                    subtitle = "Earn scroll time by solving coding problems",
+                    checked = codingState.codeUnlockEnabled,
+                    onCheckedChange = { codingViewModel.updateCodeUnlockEnabled(it) }
+                )
+
+                if (codingState.codeUnlockEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // Same username toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Same username for both",
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Use the same username for LeetCode and CodeChef",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = codingState.useSameUsername,
+                            onCheckedChange = { codingViewModel.updateUseSameUsername(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Teal
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // LeetCode username
+                    CodePlatformUsernameRow(
+                        platform = "LeetCode",
+                        username = codingState.leetcodeUsername,
+                        isVerified = codingState.isLeetcodeVerified,
+                        isVerifying = codingState.isVerifyingLeetcode,
+                        profile = codingState.leetcodeProfile,
+                        platformColor = Color(0xFFFFA116),
+                        onUsernameChange = { codingViewModel.updateLeetcodeUsername(it) },
+                        onVerify = { codingViewModel.verifyLeetcode() }
+                    )
+
+                    if (codingState.verifyError != null) {
+                        Text(
+                            text = codingState.verifyError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (codingState.leetcodeVerificationCode != null) {
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "Verify Ownership of LeetCode Account",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "To verify this account is yours, please temporarily add the following code to your LeetCode profile \"About me\" (bio) section:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = codingState.leetcodeVerificationCode!!,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { codingViewModel.confirmLeetcodeBio() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Confirm Bio Details", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // CodeChef username
+                    CodePlatformUsernameRow(
+                        platform = "CodeChef",
+                        username = codingState.codechefUsername,
+                        isVerified = codingState.isCodechefVerified,
+                        isVerifying = codingState.isVerifyingCodechef,
+                        profile = codingState.codechefProfile,
+                        platformColor = Color(0xFF5B4638),
+                        onUsernameChange = { codingViewModel.updateCodechefUsername(it) },
+                        onVerify = { codingViewModel.verifyCodechef() }
+                    )
+
+                    if (codingState.codechefVerificationCode != null) {
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "Verify Ownership of CodeChef Account",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "To verify this account is yours, please temporarily add the following code to your CodeChef profile Full Name field:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = codingState.codechefVerificationCode!!,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { codingViewModel.confirmCodechefBio() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Confirm Name Details", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // GeeksforGeeks username
+                    CodePlatformUsernameRow(
+                        platform = "GeeksforGeeks",
+                        username = codingState.gfgUsername,
+                        isVerified = codingState.isGfgVerified,
+                        isVerifying = codingState.isVerifyingGfg,
+                        profile = codingState.gfgProfile,
+                        platformColor = Color(0xFF2F8D46),
+                        onUsernameChange = { codingViewModel.updateGfgUsername(it) },
+                        onVerify = { codingViewModel.verifyGfg() }
+                    )
+
+                    if (codingState.gfgVerificationCode != null) {
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "Verify Ownership of GeeksforGeeks Account",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "To verify this account is yours, please temporarily add the following code to your GeeksforGeeks profile info/description section:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = codingState.gfgVerificationCode!!,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { codingViewModel.confirmGfgBio() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Confirm Bio/Info Details", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // Problems to fully unlock slider
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Problems to fully unlock",
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "${codingState.problemsToFullUnlock}",
+                                fontWeight = FontWeight.Bold,
+                                color = Teal
+                            )
+                        }
+                        Slider(
+                            value = codingState.problemsToFullUnlock.toFloat(),
+                            onValueChange = { codingViewModel.updateProblemsToFullUnlock(it.roundToInt()) },
+                            valueRange = 1f..10f,
+                            steps = 8,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Teal,
+                                activeTrackColor = Teal
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // Minutes per problem slider
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Minutes earned per problem",
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "${codingState.minutesPerProblem}m",
+                                fontWeight = FontWeight.Bold,
+                                color = Teal
+                            )
+                        }
+                        Slider(
+                            value = codingState.minutesPerProblem.toFloat(),
+                            onValueChange = { codingViewModel.updateMinutesPerProblem(it.roundToInt()) },
+                            valueRange = 10f..60f,
+                            steps = 4,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Teal,
+                                activeTrackColor = Teal
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Verification error
+            if (codingState.verifyError != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    codingState.verifyError!!,
+                    color = BlockRed,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
             // Permissions
             SettingsSectionHeader("Permissions")
 
@@ -281,11 +606,11 @@ fun SettingsScreen(
                             .background(Coral.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🎬", fontSize = 20.sp)
+                        Text("💻", fontSize = 20.sp)
                     }
                     Spacer(Modifier.width(14.dp))
                     Column {
-                        Text("Reel Tracker", fontWeight = FontWeight.Bold)
+                        Text("ReetCode", fontWeight = FontWeight.Bold)
                         Text("Version 1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Built to reclaim your attention", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -443,3 +768,109 @@ private fun SettingsActionRow(
         )
     }
 }
+
+@Composable
+private fun CodePlatformUsernameRow(
+    platform: String,
+    username: String,
+    isVerified: Boolean,
+    isVerifying: Boolean,
+    profile: com.reeltracker.service.PlatformProfile?,
+    platformColor: Color,
+    onUsernameChange: (String) -> Unit,
+    onVerify: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            OutlinedTextField(
+                value = username,
+                onValueChange = onUsernameChange,
+                label = { Text("$platform Username") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = platformColor,
+                    focusedLabelColor = platformColor
+                )
+            )
+            Spacer(Modifier.width(12.dp))
+            if (isVerifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = platformColor
+                )
+            } else {
+                Button(
+                    onClick = onVerify,
+                    colors = ButtonDefaults.buttonColors(containerColor = platformColor),
+                    enabled = username.isNotBlank(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(if (isVerified) "Re-Verify" else "Verify", fontSize = 12.sp)
+                }
+            }
+        }
+
+        if (isVerified) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .background(platformColor.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(platformColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (username.isNotEmpty()) username.take(1).uppercase() else "👤",
+                        fontWeight = FontWeight.Bold,
+                        color = platformColor,
+                        fontSize = 16.sp
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = profile?.username ?: username,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp
+                    )
+                    Row {
+                        Text(
+                            text = "Solved: ${profile?.totalSolved ?: 0}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "Rating: ${profile?.rating ?: "N/A"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Text("✅ Verified", color = SuccessGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+

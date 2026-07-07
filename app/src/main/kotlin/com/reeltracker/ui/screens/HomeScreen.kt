@@ -18,12 +18,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reeltracker.ui.components.CircularProgressRing
 import com.reeltracker.ui.theme.*
 import com.reeltracker.viewmodel.HomeUiState
 import com.reeltracker.viewmodel.ReelTrackerViewModel
+import com.reeltracker.viewmodel.CodingUnlockViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +44,10 @@ fun HomeScreen(
     val prefs = uiState.preferences
     val isBlocked = uiState.activeBlock != null
 
+    val codingViewModel: CodingUnlockViewModel = viewModel()
+    val codingState by codingViewModel.uiState.collectAsStateWithLifecycle()
+    var showCodeSheet by remember { mutableStateOf(false) }
+
     val currentCount = todayCount?.totalCount ?: 0
     val dailyLimit = prefs.dailyLimit
 
@@ -47,7 +56,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Reel Tracker",
+                        "ReetCode",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 22.sp
                     )
@@ -156,6 +165,32 @@ fun HomeScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            val tempUnlockUntil = prefs.tempUnlockUntilMs
+            val currentTime = System.currentTimeMillis()
+            val hasTempUnlock = currentTime < tempUnlockUntil
+
+            if (hasTempUnlock) {
+                TempUnlockStatusCard(
+                    tempUnlockUntilMs = tempUnlockUntil,
+                    onUnlockMoreClick = {
+                        uiState.activeBlock?.let {
+                            codingViewModel.fetchProblemsSinceBlock(it)
+                            showCodeSheet = true
+                        }
+                    }
+                )
+                Spacer(Modifier.height(24.dp))
+            } else if (isBlocked && uiState.activeBlock != null) {
+                BlockStatusCard(
+                    activeBlock = uiState.activeBlock,
+                    onUnlockClick = {
+                        codingViewModel.fetchProblemsSinceBlock(uiState.activeBlock)
+                        showCodeSheet = true
+                    }
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+
             // App-specific counts
             if (todayCount != null && !isBlocked) {
                 Row(
@@ -217,6 +252,16 @@ fun HomeScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    if (showCodeSheet && uiState.activeBlock != null) {
+        CodeToUnlockSheet(
+            state = codingState,
+            activeBlock = uiState.activeBlock,
+            onCheckNow = { block -> codingViewModel.fetchProblemsSinceBlock(block) },
+            onClaimUnlock = { block -> codingViewModel.claimUnlock(block) },
+            onDismiss = { showCodeSheet = false }
+        )
     }
 }
 
@@ -541,3 +586,157 @@ private fun StudyModeCard(
         }
     }
 }
+
+@Composable
+private fun BlockStatusCard(
+    activeBlock: com.reeltracker.data.entities.BlockSession,
+    onUnlockClick: () -> Unit
+) {
+    var remainingMs by remember(activeBlock.endTime) {
+        mutableLongStateOf(maxOf(0L, activeBlock.endTime - System.currentTimeMillis()))
+    }
+
+    LaunchedEffect(activeBlock.endTime) {
+        while (remainingMs > 0) {
+            delay(1000)
+            remainingMs = maxOf(0L, activeBlock.endTime - System.currentTimeMillis())
+        }
+    }
+
+    val hours = (remainingMs / 3600000).toInt()
+    val mins = ((remainingMs % 3600000) / 60000).toInt()
+    val secs = ((remainingMs % 60000) / 1000).toInt()
+    val countdownStr = String.format(java.util.Locale.US, "%02d:%02d:%02d", hours, mins, secs)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = if (activeBlock.isStudyMode) "Study Session Active" else "Social Apps Blocked",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Wait the remaining time or solve coding problems to unlock early:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = countdownStr,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "remaining time",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onUnlockClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("🎯 Unlock by Coding", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TempUnlockStatusCard(
+    tempUnlockUntilMs: Long,
+    onUnlockMoreClick: () -> Unit
+) {
+    var remainingMs by remember(tempUnlockUntilMs) {
+        mutableLongStateOf(maxOf(0L, tempUnlockUntilMs - System.currentTimeMillis()))
+    }
+
+    LaunchedEffect(tempUnlockUntilMs) {
+        while (remainingMs > 0) {
+            delay(1000)
+            remainingMs = maxOf(0L, tempUnlockUntilMs - System.currentTimeMillis())
+        }
+    }
+
+    val mins = (remainingMs / 60000).toInt()
+    val secs = ((remainingMs % 60000) / 1000).toInt()
+    val countdownStr = String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Teal.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, Teal.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.LockOpen,
+                contentDescription = null,
+                tint = Teal,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Earned Scroll Time Active",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Teal
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "You can scroll social media apps. Remaining earned time:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = countdownStr,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Teal
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "unlocked scroll time",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onUnlockMoreClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("🎯 Earn More Time by Coding", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+

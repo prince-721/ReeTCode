@@ -49,8 +49,8 @@ fun OnboardingScreen(
         OnboardingStep(
             icon = Icons.Default.Visibility,
             iconTint = Coral,
-            title = "Welcome to Reel Tracker",
-            description = "Take back control of your screen time. Reel Tracker counts how many short videos you scroll through on Instagram, Snapchat, and YouTube — and blocks those apps when you hit your daily limit.",
+            title = "Welcome to ReetCode",
+            description = "Take back control of your screen time. ReetCode counts how many short videos you scroll through on Instagram, Snapchat, and YouTube — and blocks those apps when you hit your daily limit.",
             permissionLabel = null,
             permissionAction = null
         ),
@@ -58,7 +58,7 @@ fun OnboardingScreen(
             icon = Icons.Default.Accessibility,
             iconTint = Teal,
             title = "Accessibility Access",
-            description = "Reel Tracker needs Accessibility Service permission to detect when you scroll through reels and shorts. No personal content or data is ever read or stored — only scroll events are monitored.",
+            description = "ReetCode needs Accessibility Service permission to detect when you scroll through reels and shorts. No personal content or data is ever read or stored — only scroll events are monitored.",
             permissionLabel = "Enable Accessibility Service →",
             permissionAction = { ctx ->
                 ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -68,7 +68,7 @@ fun OnboardingScreen(
             icon = Icons.Default.Layers,
             iconTint = Amber,
             title = "Overlay Permission",
-            description = "To block Instagram, Snapchat, and YouTube when you hit your limit, Reel Tracker needs permission to display a screen overlay on top of other apps.",
+            description = "To block Instagram, Snapchat, and YouTube when you hit your limit, ReetCode needs permission to display a screen overlay on top of other apps.",
             permissionLabel = "Grant Overlay Permission →",
             permissionAction = { ctx ->
                 ctx.startActivity(
@@ -83,7 +83,7 @@ fun OnboardingScreen(
             icon = Icons.Default.Notifications,
             iconTint = Coral,
             title = "Background Service",
-            description = "Reel Tracker runs a lightweight background service to track your reels in real time, even when you switch between apps. A persistent notification will show your live count.",
+            description = "ReetCode runs a lightweight background service to track your reels in real time, even when you switch between apps. A persistent notification will show your live count.",
             permissionLabel = null,
             permissionAction = null
         )

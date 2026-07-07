@@ -12,6 +12,10 @@ class ReelTrackerViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return ReelTrackerViewModel(application) as T
         }
+        if (modelClass.isAssignableFrom(CodingUnlockViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return CodingUnlockViewModel(application) as T
+        }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

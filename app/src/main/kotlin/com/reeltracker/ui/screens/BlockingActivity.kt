@@ -37,12 +37,15 @@ import com.reeltracker.service.ReelTrackerService
 import com.reeltracker.ui.theme.ReelTrackerTheme
 import com.reeltracker.ui.theme.BlockRed
 import com.reeltracker.ui.theme.Coral
+import com.reeltracker.ui.theme.Teal
+import com.reeltracker.viewmodel.CodingUnlockViewModel
 import com.reeltracker.viewmodel.ReelTrackerViewModel
 import kotlinx.coroutines.*
 
 class BlockingActivity : ComponentActivity() {
 
     private val viewModel: ReelTrackerViewModel by viewModels()
+    private val codingViewModel: CodingUnlockViewModel by viewModels()
 
     private val dismissReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -74,9 +77,29 @@ class BlockingActivity : ComponentActivity() {
                 }
 
                 if (activeBlock != null) {
+                    val codingState by codingViewModel.uiState.collectAsStateWithLifecycle()
+                    val showCodeUnlock = codingState.codeUnlockEnabled &&
+                        (codingState.isLeetcodeVerified || codingState.isCodechefVerified)
+
                     BlockingScreen(
                         endTimeMs = activeBlock.endTime,
                         isStudyMode = activeBlock.isStudyMode,
+                        showCodeToUnlock = showCodeUnlock,
+                        codingState = codingState,
+                        activeBlock = activeBlock,
+                        onCodeToUnlockClick = {
+                            codingViewModel.fetchProblemsSinceBlock(activeBlock)
+                        },
+                        onCheckNow = { block ->
+                            codingViewModel.fetchProblemsSinceBlock(block)
+                        },
+                        onClaimUnlock = { block ->
+                            codingViewModel.claimUnlock(block)
+                        },
+                        onDismissCongrats = {
+                            codingViewModel.dismissCongrats()
+                            finish()
+                        },
                         onEmergencyUnlock = {
                             viewModel.manualUnlock(activeBlock.id)
                             finish()
@@ -165,10 +188,18 @@ class BlockingActivity : ComponentActivity() {
 fun BlockingScreen(
     endTimeMs: Long,
     isStudyMode: Boolean,
+    showCodeToUnlock: Boolean = false,
+    codingState: com.reeltracker.viewmodel.CodingUnlockUiState? = null,
+    activeBlock: com.reeltracker.data.entities.BlockSession? = null,
+    onCodeToUnlockClick: () -> Unit = {},
+    onCheckNow: (com.reeltracker.data.entities.BlockSession) -> Unit = {},
+    onClaimUnlock: (com.reeltracker.data.entities.BlockSession) -> Unit = {},
+    onDismissCongrats: () -> Unit = {},
     onEmergencyUnlock: () -> Unit
 ) {
     var remainingMs by remember { mutableLongStateOf(maxOf(0L, endTimeMs - System.currentTimeMillis())) }
     var showEmergencyConfirm by remember { mutableStateOf(false) }
+    var showCodeSheet by remember { mutableStateOf(false) }
     val defaultCountdown = if (isStudyMode) 120 else 60
     var emergencyCountdown by remember(isStudyMode) { mutableIntStateOf(defaultCountdown) }
     var emergencyActive by remember { mutableStateOf(false) }
@@ -323,6 +354,40 @@ fun BlockingScreen(
 
             Spacer(Modifier.height(40.dp))
 
+            // Code to Unlock button
+            if (showCodeToUnlock) {
+                Button(
+                    onClick = {
+                        onCodeToUnlockClick()
+                        showCodeSheet = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Teal.copy(alpha = 0.15f)
+                    )
+                ) {
+                    Text("🎯", fontSize = 20.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "Code to Unlock",
+                            fontWeight = FontWeight.Bold,
+                            color = Teal,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            "Solve ${codingState?.problemsToFullUnlock ?: 5} problems to unlock early",
+                            color = Teal.copy(alpha = 0.7f),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
             // Emergency unlock
             if (!showEmergencyConfirm) {
                 TextButton(
@@ -428,6 +493,22 @@ fun BlockingScreen(
                 }
             }
         }
+    }
+
+    // Code to Unlock bottom sheet
+    if (showCodeSheet && codingState != null && activeBlock != null) {
+        CodeToUnlockSheet(
+            state = codingState,
+            activeBlock = activeBlock,
+            onCheckNow = onCheckNow,
+            onClaimUnlock = onClaimUnlock,
+            onDismiss = {
+                if (codingState.showCongrats) {
+                    onDismissCongrats()
+                }
+                showCodeSheet = false
+            }
+        )
     }
 }
 
@@ -606,7 +687,7 @@ fun FocusModeBlockingScreen(
                     color = Color.White.copy(alpha = 0.3f)
                 )
             ) {
-                Text("Go to Reel Tracker", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Go to ReetCode", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

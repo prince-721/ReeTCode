@@ -11,5 +11,10 @@ data class BlockSession(
     val endTime: Long,   // startTime + 6 hours
     val isActive: Boolean = true,
     val wasManuallyUnlocked: Boolean = false,
-    val isStudyMode: Boolean = false
+    val isStudyMode: Boolean = false,
+    val problemsSolvedDuringBlock: Int = 0,
+    val timeEarnedMs: Long = 0,
+    val wasCodeUnlocked: Boolean = false,
+    val initialGfgSolvedCount: Int = -1,
+    val initialCodechefSolvedCount: Int = -1
 )

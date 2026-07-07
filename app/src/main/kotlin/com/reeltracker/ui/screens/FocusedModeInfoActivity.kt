@@ -171,7 +171,7 @@ fun FocusedModeInfoScreen(
                         )
                     )
                 ) {
-                    Text("Go to Reel Tracker", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Go to ReetCode", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }

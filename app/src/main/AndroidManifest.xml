@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -109,7 +110,7 @@
         <!-- Device Admin Receiver for Anti-Uninstall -->
         <receiver
             android:name=".receiver.TrackerDeviceAdminReceiver"
-            android:label="Reel Tracker Anti-Uninstall Protection"
+            android:label="ReetCode Anti-Uninstall Protection"
             android:description="@string/device_admin_description"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
             android:exported="true">

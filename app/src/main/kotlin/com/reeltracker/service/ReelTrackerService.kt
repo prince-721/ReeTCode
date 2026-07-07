@@ -30,6 +30,9 @@ class ReelTrackerService : Service() {
     private var dailyLimit = 50
     private var isTracking = true
     private var isBlocked = false
+    private var tempUnlockUntilMs = 0L
+    private var tempUnlockJob: Job? = null
+    private var hasActiveBlock = false
 
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -53,6 +56,7 @@ class ReelTrackerService : Service() {
         val prefs = prefsRepository.userPreferencesFlow.first()
         dailyLimit = prefs.dailyLimit
         isTracking = prefs.isTrackingEnabled
+        tempUnlockUntilMs = prefs.tempUnlockUntilMs
 
         repository.ensureTodayExists(dailyLimit)
         val todayCount = repository.getTodayCount()
@@ -60,20 +64,18 @@ class ReelTrackerService : Service() {
 
         // Check for active block
         repository.expireOldBlocks()
-        val activeBlock = repository.getActiveBlock()
-        if (activeBlock != null) {
-            isBlocked = true
-            updateNotification(currentCount, dailyLimit, true)
-        } else {
-            updateNotification(currentCount, dailyLimit, false)
-        }
+        hasActiveBlock = repository.getActiveBlock() != null
+        checkActiveBlockAndRefresh()
 
         // Start monitoring prefs for live changes
         scope.launch {
             prefsRepository.userPreferencesFlow.collect { prefs ->
                 dailyLimit = prefs.dailyLimit
                 isTracking = prefs.isTrackingEnabled
-                updateNotification(currentCount, dailyLimit, isBlocked)
+                if (tempUnlockUntilMs != prefs.tempUnlockUntilMs) {
+                    tempUnlockUntilMs = prefs.tempUnlockUntilMs
+                    checkActiveBlockAndRefresh()
+                }
             }
         }
 
@@ -81,21 +83,14 @@ class ReelTrackerService : Service() {
         scope.launch {
             repository.observeTodayCount().collect { count ->
                 currentCount = count?.totalCount ?: 0
-                updateNotification(currentCount, dailyLimit, isBlocked)
+                checkActiveBlockAndRefresh()
             }
         }
 
         // Monitor active block
         scope.launch {
             repository.observeActiveBlock().collect { block ->
-                val wasBlocked = isBlocked
-                isBlocked = block != null
-                if (!wasBlocked && isBlocked) {
-                    showBlockingOverlay()
-                } else if (wasBlocked && !isBlocked) {
-                    dismissBlockingOverlay()
-                }
-                updateNotification(currentCount, dailyLimit, isBlocked)
+                checkActiveBlockAndRefresh()
             }
         }
 
@@ -150,11 +145,10 @@ class ReelTrackerService : Service() {
         Log.d(TAG, "Reel detected from $packageName. Count: $currentCount / $dailyLimit")
 
         // Check if limit reached
-        if (newCount >= dailyLimit && !isBlocked) {
+        if (newCount >= dailyLimit && !hasActiveBlock) {
             repository.markTodayLimitReached()
             val session = repository.createBlockSession(prefs.blockDurationHours)
-            isBlocked = true
-            showBlockingOverlay()
+            checkActiveBlockAndRefresh()
             sendLimitReachedNotification(newCount, dailyLimit)
         }
 
@@ -166,6 +160,36 @@ class ReelTrackerService : Service() {
             putExtra(EXTRA_LIMIT, dailyLimit)
         }
         sendBroadcast(updateIntent)
+    }
+
+    private suspend fun checkActiveBlockAndRefresh() {
+        val block = repository.getActiveBlock()
+        hasActiveBlock = block != null
+        val inTempUnlock = System.currentTimeMillis() < tempUnlockUntilMs
+        val wasBlocked = isBlocked
+        isBlocked = block != null && !inTempUnlock
+
+        if (!wasBlocked && isBlocked) {
+            showBlockingOverlay()
+        } else if (wasBlocked && !isBlocked) {
+            dismissBlockingOverlay()
+        }
+        updateNotification(currentCount, dailyLimit, isBlocked)
+
+        if (inTempUnlock && block != null) {
+            scheduleTempUnlockExpiration(tempUnlockUntilMs)
+        }
+    }
+
+    private fun scheduleTempUnlockExpiration(expirationTime: Long) {
+        tempUnlockJob?.cancel()
+        val delayMs = expirationTime - System.currentTimeMillis()
+        if (delayMs > 0) {
+            tempUnlockJob = scope.launch {
+                delay(delayMs)
+                checkActiveBlockAndRefresh()
+            }
+        }
     }
 
     private fun showBlockingOverlay() {
@@ -200,7 +224,7 @@ class ReelTrackerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = if (blocked) "🔒 Apps Blocked" else "📱 Reel Tracker Active"
+        val title = if (blocked) "🔒 Apps Blocked" else "📱 ReetCode Active"
         val text = if (blocked) {
             "You've hit your reel limit. Apps blocked for 6 hours."
         } else {

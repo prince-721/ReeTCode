@@ -20,6 +20,10 @@ An Android app that tracks how many reels/shorts you watch on Instagram, Snapcha
 | **Boot Restart** | Service restarts automatically after phone reboot |
 | **Dark Mode** | Full dark/light theme support |
 | **Onboarding** | First-launch walkthrough explaining each required permission |
+| **Code to Unlock** | Solve programming problems on **LeetCode, CodeChef, or GeeksforGeeks** to earn custom scroll time (e.g. 30 mins per problem) or fully unlock early! |
+| **Verification System** | Secure verification of coding profiles using custom codes (`ReetCode-XXXX`) in the user's bio/profile information to prevent cheating. |
+| **Floating Countdown Overlay** | A premium floating overlay pill (`Unlocked: MM:SS`) at the top of the screen during temporary unlock periods when using blocked apps. |
+| **Focus Mode** | Custom focus sessions allowing users to restrict access to a list of apps (or allow only safe apps) for a specified duration, bypassable only by completing the session or coding targets. |
 
 ---
 
@@ -33,29 +37,37 @@ app/src/main/kotlin/com/reeltracker/
 │
 ├── data/
 │   ├── UserPreferences.kt                   # DataStore preferences
+│   ├── FocusedModeRepository.kt             # Focused mode SharedPreferences repository
 │   ├── entities/
 │   │   ├── DailyReelCount.kt                # Room entity: per-day counts
-│   │   └── BlockSession.kt                  # Room entity: block sessions
+│   │   ├── BlockSession.kt                  # Room entity: block sessions
+│   │   ├── FocusMode.kt                     # Room entity: focus modes
+│   │   └── CodingPlatformConfig.kt          # Room entity: coding platform usernames/verification
 │   ├── dao/
 │   │   ├── DailyReelCountDao.kt             # DAO: daily counts CRUD
-│   │   └── BlockSessionDao.kt               # DAO: block sessions CRUD
+│   │   ├── BlockSessionDao.kt               # DAO: block sessions CRUD
+│   │   ├── FocusModeDao.kt                  # DAO: focus modes CRUD
+│   │   └── CodingPlatformConfigDao.kt       # DAO: coding configs CRUD
 │   ├── database/
 │   │   └── ReelTrackerDatabase.kt           # Room database definition
 │   └── repository/
 │       └── ReelTrackerRepository.kt         # Single source of truth
 │
 ├── service/
-│   ├── ReelAccessibilityService.kt          # Detects reel scrolls via A11y events
-│   └── ReelTrackerService.kt                # Foreground service, orchestrates everything
+│   ├── ReelAccessibilityService.kt          # Detects reel scrolls, displays overlay pill / fullscreen blockers
+│   ├── ReelTrackerService.kt                # Foreground service, orchestrates everything
+│   └── CodingPlatformService.kt             # Service to verify profiles & check submissions (LeetCode, CodeChef, GFG)
 │
 ├── receiver/
 │   ├── BootReceiver.kt                      # Restarts service after reboot
 │   ├── MidnightResetReceiver.kt             # Fires at midnight to reset counter
-│   └── UnlockReceiver.kt                    # Handles unlock broadcast
+│   ├── UnlockReceiver.kt                    # Handles unlock broadcast
+│   └── TrackerDeviceAdminReceiver.kt        # Device administrator receiver for anti-uninstall security
 │
 ├── viewmodel/
 │   ├── ReelTrackerViewModel.kt              # MVVM ViewModel with StateFlow
-│   └── ReelTrackerViewModelFactory.kt       # ViewModel factory
+│   ├── ReelTrackerViewModelFactory.kt       # ViewModel factory
+│   └── CodingUnlockViewModel.kt             # Handles state for platforms verification & problem count checks
 │
 └── ui/
     ├── theme/Theme.kt                       # Material3 dark/light color scheme
@@ -67,8 +79,10 @@ app/src/main/kotlin/com/reeltracker/
         ├── OnboardingScreen.kt              # First-launch permission walkthrough
         ├── HomeScreen.kt                    # Main screen: ring, streak, slider
         ├── HistoryScreen.kt                 # 7-day history + breakdown
-        ├── SettingsScreen.kt                # Limits, app toggles, permissions
-        └── BlockingActivity.kt              # Fullscreen block screen + emergency unlock
+        ├── SettingsScreen.kt                # Limits, app toggles, permissions, coding profile verification
+        ├── BlockingActivity.kt              # Fullscreen block screen + emergency unlock
+        ├── FocusedModeInfoActivity.kt       # Focus mode blocker details
+        └── CodeToUnlockSheet.kt             # Bottom sheet to check/claim coding unlock credits
 ```
 
 ---

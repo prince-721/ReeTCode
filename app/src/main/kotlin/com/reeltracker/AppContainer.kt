@@ -14,7 +14,8 @@ object AppContainer {
         _repository = ReelTrackerRepository(
             dailyReelCountDao = db.dailyReelCountDao(),
             blockSessionDao = db.blockSessionDao(),
-            focusModeDao = db.focusModeDao()
+            focusModeDao = db.focusModeDao(),
+            codingPlatformConfigDao = db.codingPlatformConfigDao()
         )
         _prefsRepository = UserPreferencesRepository(context)
     }

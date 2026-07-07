@@ -2,9 +2,11 @@ package com.reeltracker.data.repository
 
 import android.util.Log
 import com.reeltracker.data.dao.BlockSessionDao
+import com.reeltracker.data.dao.CodingPlatformConfigDao
 import com.reeltracker.data.dao.DailyReelCountDao
 import com.reeltracker.data.dao.FocusModeDao
 import com.reeltracker.data.entities.BlockSession
+import com.reeltracker.data.entities.CodingPlatformConfig
 import com.reeltracker.data.entities.DailyReelCount
 import com.reeltracker.data.entities.FocusMode
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +19,8 @@ private const val TAG = "ReelTrackerRepository"
 class ReelTrackerRepository(
     private val dailyReelCountDao: DailyReelCountDao,
     private val blockSessionDao: BlockSessionDao,
-    private val focusModeDao: FocusModeDao
+    private val focusModeDao: FocusModeDao,
+    private val codingPlatformConfigDao: CodingPlatformConfigDao
 ) {
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
@@ -143,6 +146,23 @@ class ReelTrackerRepository(
         return session.copy(id = id)
     }
 
+    suspend fun codeUnlockBlock(id: Long, problemsSolved: Int, earnedMs: Long) {
+        blockSessionDao.deactivateWithCodeUnlock(id, problemsSolved, earnedMs)
+    }
+
+    suspend fun reduceBlockTime(id: Long, problemsSolved: Int, earnedMs: Long, newEndTime: Long) {
+        blockSessionDao.updateCodeUnlockProgress(id, problemsSolved, earnedMs)
+        blockSessionDao.updateEndTime(id, newEndTime)
+    }
+
+    suspend fun updateGfgInitialCount(id: Long, count: Int) {
+        blockSessionDao.updateGfgInitialCount(id, count)
+    }
+
+    suspend fun updateCodechefInitialCount(id: Long, count: Int) {
+        blockSessionDao.updateCodechefInitialCount(id, count)
+    }
+
     // ---- Focus Modes ----
 
     fun observeAllFocusModes(): Flow<List<FocusMode>> =
@@ -175,7 +195,7 @@ class ReelTrackerRepository(
             focusModeDao.disableAllFocusModes()
             val mode = focusModeDao.getFocusModeById(id)
             if (mode != null) {
-                focusModeDao.update(mode.copy(isEnabled = true))
+                focusModeDao.update(mode.copy(isEnabled = true, activatedTime = System.currentTimeMillis()))
             }
         } else {
             val mode = focusModeDao.getFocusModeById(id)
@@ -183,5 +203,17 @@ class ReelTrackerRepository(
                 focusModeDao.update(mode.copy(isEnabled = false))
             }
         }
+    }
+
+    suspend fun saveCodingConfig(config: CodingPlatformConfig) {
+        codingPlatformConfigDao.upsert(config)
+    }
+
+    suspend fun getCodingConfig(): CodingPlatformConfig? {
+        return codingPlatformConfigDao.getConfig()
+    }
+
+    fun observeCodingConfig(): Flow<CodingPlatformConfig?> {
+        return codingPlatformConfigDao.observeConfig()
     }
 }

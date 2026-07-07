@@ -11,6 +11,23 @@ class ReelTrackerApp : Application() {
         super.onCreate()
         AppContainer.initialize(this)
         createNotificationChannels()
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var activeActivities = 0
+
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+            override fun onActivityStarted(activity: android.app.Activity) {
+                activeActivities++
+                com.reeltracker.service.ReelAccessibilityService.isAppInForeground = activeActivities > 0
+            }
+            override fun onActivityResumed(activity: android.app.Activity) {}
+            override fun onActivityPaused(activity: android.app.Activity) {}
+            override fun onActivityStopped(activity: android.app.Activity) {
+                activeActivities--
+                com.reeltracker.service.ReelAccessibilityService.isAppInForeground = activeActivities > 0
+            }
+            override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
+            override fun onActivityDestroyed(activity: android.app.Activity) {}
+        })
     }
 
     private fun createNotificationChannels() {
@@ -20,7 +37,7 @@ class ReelTrackerApp : Application() {
             // Main tracker channel
             val trackerChannel = NotificationChannel(
                 CHANNEL_TRACKER,
-                "Reel Tracker",
+                "ReetCode",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Shows your live reel count and tracking status"
@@ -30,7 +47,7 @@ class ReelTrackerApp : Application() {
             // Alert channel for limit warnings
             val alertChannel = NotificationChannel(
                 CHANNEL_ALERTS,
-                "Reel Tracker Alerts",
+                "ReetCode Alerts",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Alerts when you reach your reel limit"

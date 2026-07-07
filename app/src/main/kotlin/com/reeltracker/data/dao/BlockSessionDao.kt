@@ -33,4 +33,19 @@ interface BlockSessionDao {
 
     @Query("SELECT * FROM block_sessions WHERE isStudyMode = 1 ORDER BY startTime DESC")
     suspend fun getAllStudySessions(): List<BlockSession>
+
+    @Query("UPDATE block_sessions SET problemsSolvedDuringBlock = :solved, timeEarnedMs = :earnedMs WHERE id = :id")
+    suspend fun updateCodeUnlockProgress(id: Long, solved: Int, earnedMs: Long)
+
+    @Query("UPDATE block_sessions SET isActive = 0, wasCodeUnlocked = 1, problemsSolvedDuringBlock = :solved, timeEarnedMs = :earnedMs WHERE id = :id")
+    suspend fun deactivateWithCodeUnlock(id: Long, solved: Int, earnedMs: Long)
+
+    @Query("UPDATE block_sessions SET endTime = :newEndTime WHERE id = :id")
+    suspend fun updateEndTime(id: Long, newEndTime: Long)
+
+    @Query("UPDATE block_sessions SET initialGfgSolvedCount = :count WHERE id = :id")
+    suspend fun updateGfgInitialCount(id: Long, count: Int)
+
+    @Query("UPDATE block_sessions SET initialCodechefSolvedCount = :count WHERE id = :id")
+    suspend fun updateCodechefInitialCount(id: Long, count: Int)
 }
