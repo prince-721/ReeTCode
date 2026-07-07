@@ -1,6 +1,6 @@
 # 🎬 Reel Tracker
 
-An Android app that tracks how many reels/shorts you watch on Instagram, Snapchat, and YouTube — and automatically blocks those apps when you hit your daily limit.
+An Android app that tracks how many reels/shorts you watch on Instagram, Snapchat, and YouTube, automatically blocks them when you hit your daily limit, and allows you to earn scroll time back by solving coding problems on LeetCode, CodeChef, and GeeksforGeeks, or restrict access using customized Focus Sessions.
 
 ---
 
