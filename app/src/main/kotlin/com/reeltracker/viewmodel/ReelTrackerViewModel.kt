@@ -141,10 +141,19 @@ class ReelTrackerViewModel(application: Application) : AndroidViewModel(applicat
 
     fun requestExactAlarmPermission(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                data = Uri.parse("package:${context.packageName}")
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    context.startActivity(intent)
+                } catch (ex: Exception) {
+                    android.widget.Toast.makeText(context, "Exact alarm permission settings not supported on this device.", android.widget.Toast.LENGTH_LONG).show()
+                }
             }
-            context.startActivity(intent)
         }
     }
 

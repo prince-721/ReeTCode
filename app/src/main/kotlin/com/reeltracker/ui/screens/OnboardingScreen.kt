@@ -61,7 +61,11 @@ fun OnboardingScreen(
             description = "ReetCode needs Accessibility Service permission to detect when you scroll through reels and shorts. No personal content or data is ever read or stored — only scroll events are monitored.",
             permissionLabel = "Enable Accessibility Service →",
             permissionAction = { ctx ->
-                ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                try {
+                    ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(ctx, "Could not open accessibility settings.", android.widget.Toast.LENGTH_LONG).show()
+                }
             }
         ),
         OnboardingStep(
@@ -71,12 +75,16 @@ fun OnboardingScreen(
             description = "To block Instagram, Snapchat, and YouTube when you hit your limit, ReetCode needs permission to display a screen overlay on top of other apps.",
             permissionLabel = "Grant Overlay Permission →",
             permissionAction = { ctx ->
-                ctx.startActivity(
-                    Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        android.net.Uri.parse("package:${ctx.packageName}")
+                try {
+                    ctx.startActivity(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:${ctx.packageName}")
+                        )
                     )
-                )
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(ctx, "Could not open overlay permission settings.", android.widget.Toast.LENGTH_LONG).show()
+                }
             }
         ),
         OnboardingStep(

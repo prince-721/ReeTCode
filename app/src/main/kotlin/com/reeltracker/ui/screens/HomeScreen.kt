@@ -291,9 +291,13 @@ private fun PermissionWarningCard(
             if (!accessibilityEnabled) {
                 TextButton(
                     onClick = {
-                        context.startActivity(
-                            android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                        )
+                        try {
+                            context.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            )
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open accessibility settings.", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
                 ) {
                     Icon(Icons.Default.Accessibility, null, modifier = Modifier.size(16.dp))
@@ -304,12 +308,16 @@ private fun PermissionWarningCard(
             if (!overlayGranted) {
                 TextButton(
                     onClick = {
-                        context.startActivity(
-                            android.content.Intent(
-                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                android.net.Uri.parse("package:${context.packageName}")
+                        try {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open overlay permission settings.", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
                 ) {
                     Icon(Icons.Default.Layers, null, modifier = Modifier.size(16.dp))

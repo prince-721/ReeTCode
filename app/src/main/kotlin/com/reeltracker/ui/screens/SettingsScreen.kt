@@ -517,7 +517,11 @@ fun SettingsScreen(
                     subtitle = if (viewModel.isAccessibilityServiceEnabled(context))
                         "✅ Enabled" else "❌ Disabled — tap to enable",
                     onClick = {
-                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        try {
+                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open accessibility settings. Please enable it manually in system settings.", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
@@ -528,12 +532,16 @@ fun SettingsScreen(
                     subtitle = if (viewModel.isOverlayPermissionGranted(context))
                         "✅ Granted" else "❌ Not granted — tap to grant",
                     onClick = {
-                        context.startActivity(
-                            Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                android.net.Uri.parse("package:${context.packageName}")
+                        try {
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open overlay permission settings.", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -556,11 +564,23 @@ fun SettingsScreen(
                     title = "Notifications",
                     subtitle = "Manage notification settings",
                     onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        try {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
+                            )
+                        } catch (e: Exception) {
+                            try {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                                    }
+                                )
+                            } catch (ex: Exception) {
+                                android.widget.Toast.makeText(context, "Could not open notification settings.", android.widget.Toast.LENGTH_SHORT).show()
                             }
-                        )
+                        }
                     }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
@@ -573,16 +593,31 @@ fun SettingsScreen(
                     checked = isDeviceAdminEnabled,
                     onCheckedChange = { checked ->
                         if (checked) {
-                            val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
-                                putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects the app from being uninstalled to help preserve your screen time goals.")
+                            try {
+                                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects the app from being uninstalled to help preserve your screen time goals.")
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Device admin settings not available on this device.", android.widget.Toast.LENGTH_LONG).show()
                             }
-                            context.startActivity(intent)
                         } else {
-                            val intent = Intent().apply {
-                                action = "android.settings.DEVICE_ADMIN_SETTINGS"
+                            val intentsToTry = listOf(
+                                Intent(Settings.ACTION_SECURITY_SETTINGS),
+                                Intent(Settings.ACTION_SETTINGS)
+                            )
+                            var launched = false
+                            for (intent in intentsToTry) {
+                                try {
+                                    context.startActivity(intent)
+                                    launched = true
+                                    break
+                                } catch (_: Exception) { }
                             }
-                            context.startActivity(intent)
+                            if (!launched) {
+                                android.widget.Toast.makeText(context, "Could not open settings. Please disable Device Admin manually in Settings > Security.", android.widget.Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 )
