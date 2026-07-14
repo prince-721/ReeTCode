@@ -41,6 +41,9 @@ class ReelAccessibilityService : AccessibilityService() {
     @Volatile
     private var isBlockingScreenVisible = false
 
+    @Volatile
+    private var isFocusedShared = false
+
     private lateinit var focusedModeRepository: FocusedModeRepository
 
     private var overlayView: android.view.View? = null
@@ -158,7 +161,7 @@ class ReelAccessibilityService : AccessibilityService() {
             try {
                 AppContainer.repository.observeActiveBlock().collect { block ->
                     isBlocked = block != null
-                    if (isBlocked && (isCurrentPackageBlocked(currentPackage) || isSettingsOrInstallerPackage(currentPackage))) {
+                    if (isBlocked && isCurrentPackageBlocked(currentPackage)) {
                         val inTempUnlock = System.currentTimeMillis() < tempUnlockUntilMs
                         if (!inTempUnlock && !isBlockingScreenVisible && fullScreenBlockerVal == null) {
                             withContext(Dispatchers.Main) {
@@ -193,6 +196,8 @@ class ReelAccessibilityService : AccessibilityService() {
                 }
                 currentPackage = packageName
                 isBlockingScreenVisible = (packageName == this.packageName)
+                // Refresh focus mode cache only on window state changes (not every scroll/content event)
+                isFocusedShared = focusedModeRepository.isFocused()
             }
         }
 
@@ -213,6 +218,14 @@ class ReelAccessibilityService : AccessibilityService() {
             return
         }
 
+        // Battery optimization: skip all processing for irrelevant packages when no block/focus is active
+        val hasFocusSession = activeFocusMode != null || isFocusedShared
+        val isRelevantPackage = isCurrentPackageBlocked(currentPackage) ||
+                (hasFocusSession && isSettingsOrInstallerPackage(currentPackage))
+        if (!isRelevantPackage && !isBlocked && !hasFocusSession) {
+            return
+        }
+
         val inTempUnlock = System.currentTimeMillis() < tempUnlockUntilMs
 
         if (inTempUnlock && isCurrentPackageBlocked(packageName)) {
@@ -221,8 +234,9 @@ class ReelAccessibilityService : AccessibilityService() {
             removeOverlay()
         }
 
-        // Intercept and block if screen time limit or Focus Mode is active on the current active foreground app
-        val isAppBlocked = !inTempUnlock && isBlocked && (isCurrentPackageBlocked(currentPackage) || isSettingsOrInstallerPackage(currentPackage))
+        // Intercept and block if screen time limit is active — only block social media apps (not settings)
+        val isAppBlocked = !inTempUnlock && isBlocked && isCurrentPackageBlocked(currentPackage)
+        // Focus Mode blocks social media + settings + installer apps
         val isFocusBlocked = isFocusModeActive(currentPackage)
 
         if (isAppBlocked || isFocusBlocked) {
@@ -380,9 +394,12 @@ class ReelAccessibilityService : AccessibilityService() {
 
     private fun isSettingsOrInstallerPackage(pkg: String): Boolean {
         val lower = pkg.lowercase(Locale.US)
-        return lower.contains("settings") ||
-                lower.contains("packageinstaller") ||
-                lower.contains("securitycenter") ||
+        return lower == "com.android.settings" ||
+                lower == "com.google.android.settings" ||
+                lower == "com.samsung.android.settings" ||
+                lower == "com.miui.securitycenter" ||
+                lower == "com.android.packageinstaller" ||
+                lower == "com.google.android.packageinstaller" ||
                 lower == "com.android.vending" ||
                 lower == "com.huawei.systemmanager" ||
                 lower == "com.coloros.safecenter" ||
@@ -390,8 +407,7 @@ class ReelAccessibilityService : AccessibilityService() {
     }
 
     private fun isFocusModeActive(packageName: String): Boolean {
-        // 1. Check SharedPreferences Focus Session
-        val isFocusedShared = focusedModeRepository.isFocused()
+        // 1. Check SharedPreferences Focus Session (using cached value)
         if (isFocusedShared) {
             val blockedApps = focusedModeRepository.getBlockedApps()
             if (blockedApps.contains(packageName) || isCurrentPackageBlocked(packageName) || isSettingsOrInstallerPackage(packageName)) {
