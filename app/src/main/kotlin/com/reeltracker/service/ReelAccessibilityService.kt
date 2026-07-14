@@ -133,6 +133,12 @@ class ReelAccessibilityService : AccessibilityService() {
             try {
                 db.focusModeDao().getActiveFocusModesFlow().collect { modes ->
                     activeFocusMode = modes.firstOrNull()
+                    val mode = activeFocusMode
+                    if (mode != null && mode.isEnabled && isPackageBlockedInFocusMode(currentPackage, mode)) {
+                        withContext(Dispatchers.Main) {
+                            showFullScreenBlocker(true)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error observing active focus mode", e)
@@ -148,15 +154,16 @@ class ReelAccessibilityService : AccessibilityService() {
                 Log.e(TAG, "Error observing preferences", e)
             }
         }
-        // Observe active block session
         scope.launch {
             try {
                 AppContainer.repository.observeActiveBlock().collect { block ->
                     isBlocked = block != null
-                    if (isBlocked && isCurrentPackageBlocked(currentPackage)) {
+                    if (isBlocked && (isCurrentPackageBlocked(currentPackage) || isSettingsOrInstallerPackage(currentPackage))) {
                         val inTempUnlock = System.currentTimeMillis() < tempUnlockUntilMs
                         if (!inTempUnlock && !isBlockingScreenVisible && fullScreenBlockerVal == null) {
-                            showBlockingOverlay()
+                            withContext(Dispatchers.Main) {
+                                showBlockingOverlay()
+                            }
                         }
                     }
                 }
@@ -373,13 +380,13 @@ class ReelAccessibilityService : AccessibilityService() {
 
     private fun isSettingsOrInstallerPackage(pkg: String): Boolean {
         val lower = pkg.lowercase(Locale.US)
-        return lower == "com.android.settings" ||
-                lower == "com.google.android.settings" ||
-                lower == "com.samsung.android.settings" ||
-                lower == "com.android.providers.settings" ||
-                lower == "com.google.android.packageinstaller" ||
-                lower == "com.android.packageinstaller" ||
-                lower == "com.android.vending"
+        return lower.contains("settings") ||
+                lower.contains("packageinstaller") ||
+                lower.contains("securitycenter") ||
+                lower == "com.android.vending" ||
+                lower == "com.huawei.systemmanager" ||
+                lower == "com.coloros.safecenter" ||
+                lower == "com.oppo.safe"
     }
 
     private fun isFocusModeActive(packageName: String): Boolean {
