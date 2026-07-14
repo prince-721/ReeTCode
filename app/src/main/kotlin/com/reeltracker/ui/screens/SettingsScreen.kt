@@ -67,6 +67,23 @@ fun SettingsScreen(
         )
     }
 
+    val activeFocusMode by viewModel.activeFocusMode.collectAsStateWithLifecycle()
+    val focusedModeRepo = remember { com.reeltracker.data.FocusedModeRepository(context) }
+    val isFocusedShared = remember { focusedModeRepo.isFocused() }
+    val isBlocked = uiState.activeBlock != null || activeFocusMode != null || isFocusedShared
+
+    val checkBlockAndExecute: (() -> Unit) -> Unit = { action ->
+        if (isBlocked) {
+            android.widget.Toast.makeText(
+                context,
+                "Permissions cannot be modified during an active block or focus session.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        } else {
+            action()
+        }
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -517,10 +534,12 @@ fun SettingsScreen(
                     subtitle = if (viewModel.isAccessibilityServiceEnabled(context))
                         "✅ Enabled" else "❌ Disabled — tap to enable",
                     onClick = {
-                        try {
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Could not open accessibility settings. Please enable it manually in system settings.", android.widget.Toast.LENGTH_LONG).show()
+                        checkBlockAndExecute {
+                            try {
+                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Could not open accessibility settings. Please enable it manually in system settings.", android.widget.Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 )
@@ -532,15 +551,17 @@ fun SettingsScreen(
                     subtitle = if (viewModel.isOverlayPermissionGranted(context))
                         "✅ Granted" else "❌ Not granted — tap to grant",
                     onClick = {
-                        try {
-                            context.startActivity(
-                                Intent(
-                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:${context.packageName}")
+                        checkBlockAndExecute {
+                            try {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        android.net.Uri.parse("package:${context.packageName}")
+                                    )
                                 )
-                            )
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Could not open overlay permission settings.", android.widget.Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Could not open overlay permission settings.", android.widget.Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 )
@@ -552,9 +573,11 @@ fun SettingsScreen(
                         title = "Exact Alarm Reset",
                         subtitle = if (isExactAlarmEnabled)
                             "✅ Granted (resets counts at midnight)" else "❌ Not granted — tap to grant",
-                        onClick = {
+                    onClick = {
+                        checkBlockAndExecute {
                             viewModel.requestExactAlarmPermission(context)
                         }
+                    }
                     )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
@@ -564,21 +587,23 @@ fun SettingsScreen(
                     title = "Notifications",
                     subtitle = "Manage notification settings",
                     onClick = {
-                        try {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                }
-                            )
-                        } catch (e: Exception) {
+                        checkBlockAndExecute {
                             try {
                                 context.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                                     }
                                 )
-                            } catch (ex: Exception) {
-                                android.widget.Toast.makeText(context, "Could not open notification settings.", android.widget.Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                try {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                        }
+                                    )
+                                } catch (ex: Exception) {
+                                    android.widget.Toast.makeText(context, "Could not open notification settings.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     }
@@ -592,31 +617,39 @@ fun SettingsScreen(
                         "🔒 Active (Prevents app uninstallation)" else "🔓 Inactive — tap to activate Device Admin",
                     checked = isDeviceAdminEnabled,
                     onCheckedChange = { checked ->
-                        if (checked) {
-                            try {
-                                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
-                                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects the app from being uninstalled to help preserve your screen time goals.")
-                                }
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, "Device admin settings not available on this device.", android.widget.Toast.LENGTH_LONG).show()
-                            }
+                        if (isBlocked) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Anti-Uninstall settings cannot be modified during an active block or focus session.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
                         } else {
-                            val intentsToTry = listOf(
-                                Intent(Settings.ACTION_SECURITY_SETTINGS),
-                                Intent(Settings.ACTION_SETTINGS)
-                            )
-                            var launched = false
-                            for (intent in intentsToTry) {
+                            if (checked) {
                                 try {
+                                    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                        putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                        putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects the app from being uninstalled to help preserve your screen time goals.")
+                                    }
                                     context.startActivity(intent)
-                                    launched = true
-                                    break
-                                } catch (_: Exception) { }
-                            }
-                            if (!launched) {
-                                android.widget.Toast.makeText(context, "Could not open settings. Please disable Device Admin manually in Settings > Security.", android.widget.Toast.LENGTH_LONG).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Device admin settings not available on this device.", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                val intentsToTry = listOf(
+                                    Intent(Settings.ACTION_SECURITY_SETTINGS),
+                                    Intent(Settings.ACTION_SETTINGS)
+                                )
+                                var launched = false
+                                for (intent in intentsToTry) {
+                                    try {
+                                        context.startActivity(intent)
+                                        launched = true
+                                        break
+                                    } catch (_: Exception) { }
+                                }
+                                if (!launched) {
+                                    android.widget.Toast.makeText(context, "Could not open settings. Please disable Device Admin manually in Settings > Security.", android.widget.Toast.LENGTH_LONG).show()
+                                }
                             }
                         }
                     }
